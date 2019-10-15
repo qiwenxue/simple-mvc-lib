@@ -3,11 +3,15 @@ package core.util;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -32,19 +36,22 @@ public class FileUtil {
 		try {
 			// 以流的形式下载文件。
 			BufferedInputStream fis = new BufferedInputStream(new FileInputStream(file.getPath()));
-			byte[] buffer = new byte[fis.available()];
-			fis.read(buffer);
-			fis.close();
-			// 清空response
 			response.reset();
 			OutputStream toClient = new BufferedOutputStream(response.getOutputStream());
 			response.setContentType("application/octet-stream");
+			response.addHeader("Content-Length", "" + file.length());
 			response.setHeader("Content-Disposition", "attachment;filename=" + CommUtils.encode(file.getName()));
-			toClient.write(buffer);
+			
+	    byte[] buffer = new byte[1024];
+      int len = 0;
+      while((len = fis.read(buffer)) != -1) {
+        toClient.write(buffer, 0, len);
+      }
+			//toClient.write(buffer);
 			toClient.flush();
 			toClient.close();
-			if (isDelete) {
-				// 清空目录
+			fis.close();
+			if (isDelete) {  //清空目录
 				File fs = file.getParentFile();
 				for (File f : fs.listFiles()) {
 					f.delete(); // file.delete(); 是否将生成的服务器端文件删除
@@ -70,18 +77,18 @@ public class FileUtil {
 					ZipEntry entry = new ZipEntry(inputFile.getName());
 					outputstream.putNextEntry(entry);
 
-					final int MAX_BYTE = 10 * 1024 * 1024; // 最大的流为10M
+					final int MAX_BYTE = 10*1024*1024; // 最大的流为10M
 					long streamTotal = 0; // 接受流的容量
 					int streamNum = 0; // 流需要分开的数量
 					int leaveByte = 0; // 文件剩下的字符数
 					byte[] inOutbyte; // byte数组接受文件的数据
 
 					streamTotal = bInStream.available(); // 通过available方法取得流的最大字符数
-					streamNum = (int) Math.floor(streamTotal / MAX_BYTE); // 取得流文件需要分开的数量
+					streamNum = (int) Math.ceil(streamTotal / MAX_BYTE); // 取得流文件需要分开的数量
 					leaveByte = (int) streamTotal % MAX_BYTE; // 分开文件之后,剩余的数量
-
+					
 					if (streamNum > 0) {
-						for (int j = 0; j < streamNum; ++j) {
+						for (int j = 0; j < streamNum; j++) {
 							inOutbyte = new byte[MAX_BYTE];
 							// 读入流,保存在byte数组
 							bInStream.read(inOutbyte, 0, MAX_BYTE);
@@ -92,9 +99,10 @@ public class FileUtil {
 					inOutbyte = new byte[leaveByte];
 					bInStream.read(inOutbyte, 0, leaveByte);
 					outputstream.write(inOutbyte);
-					outputstream.closeEntry(); // Closes the current ZIP entry
+					
 					bInStream.close(); // 关闭
 					inStream.close();
+					outputstream.closeEntry(); // Closes the current ZIP entry
 				}
 			} else {
 				throw new ServletException("文件不存在！");
@@ -104,16 +112,22 @@ public class FileUtil {
 		}
 	}
 
-	public static void zipFile(List<File> files, ZipOutputStream outputStream) throws IOException, ServletException {
+	public static void zipFile(List<File> files, OutputStream outputStream) throws IOException, ServletException {
+	  ZipOutputStream zipOut = null;
 		try {
+		  zipOut = new ZipOutputStream(outputStream);// 压缩流
 			int size = files.size();
 			// 压缩列表中的文件
 			for (int i = 0; i < size; i++) {
 				File file = (File) files.get(i);
-				zipFile(file, outputStream);
+				zipFile(file, zipOut);
 			}
 		} catch (IOException e) {
 			throw e;
+		} finally {
+		  if ( zipOut != null ) {
+		    zipOut.close();  //在此处管理流,以免压缩文件出问题
+		  }
 		}
 	}
 	
@@ -160,5 +174,59 @@ public class FileUtil {
       }
       return response;
   }
+	
+	/**
+	 * 从网络Url中下载文件
+	 * @param urlStr
+	 * @param fileName
+	 * @param savePath
+	 * @throws IOException
+	 */
+	public static File  downLoadFromUrl(String urlStr,String fileName,String savePath) throws IOException{
+	  logger.info("begin download the file "+urlStr+".........");
+	    URL url = new URL(urlStr);
+	    HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+	    //设置超时间为3秒
+	    conn.setConnectTimeout(3*1000);
+	    //防止屏蔽程序抓取而返回403错误
+	    conn.setRequestProperty("User-Agent", "Mozilla/4.0 (compatible; MSIE 5.0; Windows NT; DigExt)");
+	    //得到输入流
+	    InputStream inputStream = conn.getInputStream();
+	    //获取自己数组
+	    byte[] getData = readInputStream(inputStream);
+	    //文件保存位置
+	    File saveDir = new File(savePath);
+	    if(!saveDir.exists()){
+	        saveDir.mkdir();
+	    }
+	    File file = new File(saveDir+File.separator+fileName);
+	    FileOutputStream fos = new FileOutputStream(file);
+	    fos.write(getData);
+	    if(fos!=null){
+	        fos.close();
+	    }
+	    if(inputStream!=null){
+	        inputStream.close();
+	    }
+	    logger.info("dowload the file:"+fileName+" success");
+	    return file;
+	}
+	
+	/**
+	 * 从输入流中获取字节数组
+	 * @param inputStream
+	 * @return
+	 * @throws IOException
+	 */
+	public static  byte[] readInputStream(InputStream inputStream) throws IOException {
+	    byte[] buffer = new byte[1024];
+	    int len = 0;
+	    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+	    while((len = inputStream.read(buffer)) != -1) {
+	        bos.write(buffer, 0, len);
+	    }
+	    bos.close();
+	    return bos.toByteArray();
+	}    
 
 }
