@@ -34,7 +34,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import core.util.CommUtils;
-
+/**
+ * 文件下载工具类
+ * @author qwx
+ *
+ */
 public class FileUtil {
 	private final static Logger logger = LoggerFactory.getLogger(FileUtil.class);
   
