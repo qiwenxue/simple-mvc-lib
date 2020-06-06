@@ -4,7 +4,11 @@ import com.danga.MemCached.MemCachedClient;
 import com.danga.MemCached.SockIOPool;
 
 import core.util.PropertyUtil;
-
+/**
+ * memocache
+ * @author Administrator
+ *
+ */
 public class MemcachConfig {
   
   private static int initConn=5;
