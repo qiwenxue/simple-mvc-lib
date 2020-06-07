@@ -45,7 +45,7 @@ import core.util.CoreDataUtil;
 public final class ClassLoader implements Filter {
   private static String SUFFIX="";  //后缀
   private static final String BASE_CONFIG_FILE_KEY="base.service.file.name";
-  private static final String BASE_CONFIG_FILE_NAME = "conf";
+  private static final String BASE_CONFIG_FILE_NAME = "system";
   private static final String DEFAULT_CODE = "UTF-8";
   private static final String REQUEST_URL_SUFFIX = "base.request.url.suffix";//请求的后缀
   private static final String BASE_DATASOURCE_KEY = "base.datasource.name";
@@ -174,6 +174,7 @@ public final class ClassLoader implements Filter {
         String requestType = mth.type();
         Forward[] forwards = mth.forwards();
         Redirect[] redirects = mth.redirects();
+        
         Unit unit = new Unit( classPath,  methodName,  requestUri,  requestType );
         setRequestCatalgy(forwards, redirects, unit); //缓存forwards和redirect方法
         setDefaultMethod( actionClazz, unit );        //缓存默认的方法
