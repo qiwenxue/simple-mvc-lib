@@ -29,8 +29,8 @@ import net.sf.json.JSONObject;
  * @author qiwx
  *
  */
-public class CoreFileter implements Filter {
-  private static Logger logger = core.util.Logger.getLogger(CoreFileter.class);
+public class DispatcherFileter implements Filter {
+  private static Logger logger = core.util.Logger.getLogger(DispatcherFileter.class);
   @Override
   public void destroy() {
   }
